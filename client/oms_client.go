@@ -12,11 +12,8 @@ import (
 	"time"
 
 	"code.cloudfoundry.org/lager"
+	common "github.com/Azure/oms-log-analytics-firehose-nozzle/common"
 )
-
-type Client interface {
-	PostData(*[]byte, string) error
-}
 
 // Client posts messages to OMS
 type client struct {
@@ -38,7 +35,7 @@ func init() {
 }
 
 // New instance of the Client
-func NewOmsClient(customerID string, sharedKey string, postTimeout time.Duration, logger lager.Logger) Client {
+func NewOmsClient(customerID string, sharedKey string, postTimeout time.Duration, logger lager.Logger) common.Client {
 	return &client{
 		customerID:      customerID,
 		sharedKey:       sharedKey,
@@ -87,6 +84,10 @@ func (c *client) PostData(msg *[]byte, logType string) error {
 		return fmt.Errorf("Post Error. HTTP response code:%d message:%s", resp.StatusCode, resp.Status)
 	}
 	return nil
+}
+
+func (c *client) PostBatchData(batch *[]interface{}, logType string) (int, error) {
+	return 0, fmt.Errorf("Not Implemented")
 }
 
 func (c *client) buildSignature(date string, contentLength int, method string, contentType string, resource string) (string, error) {

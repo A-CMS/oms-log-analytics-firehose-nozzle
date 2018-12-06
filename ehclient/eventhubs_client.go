@@ -7,12 +7,8 @@ import (
 
 	"code.cloudfoundry.org/lager"
 	eventhub "github.com/Azure/azure-event-hubs-go"
+	common "github.com/Azure/oms-log-analytics-firehose-nozzle/common"
 )
-
-type Client interface {
-	PostData(*[]byte, string) error
-	PostBatchData(*[]interface{}, string) (int, error)
-}
 
 // Client posts messages to Event Hubs
 type ehclient struct {
@@ -21,7 +17,7 @@ type ehclient struct {
 }
 
 // NewEventHubsClient creates a new instance of the Client
-func NewEventHubsClient(connectionString string, logger lager.Logger) Client {
+func NewEventHubsClient(connectionString string, logger lager.Logger) common.Client {
 	return &ehclient{
 		connectionString: connectionString,
 		logger:           logger,

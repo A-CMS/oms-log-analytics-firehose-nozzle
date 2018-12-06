@@ -10,11 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Azure/oms-log-analytics-firehose-nozzle/ehnozzle"
+
 	"code.cloudfoundry.org/lager"
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/caching"
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/client"
+	"github.com/Azure/oms-log-analytics-firehose-nozzle/common"
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/ehclient"
-	"github.com/Azure/oms-log-analytics-firehose-nozzle/ehnozzle"
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/firehose"
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/omsnozzle"
 	cfclient "github.com/cloudfoundry-community/go-cfclient"
@@ -202,31 +204,33 @@ func main() {
 
 	if *sink == "oms" {
 		omsClient := client.NewOmsClient(*omsWorkspace, *omsKey, *omsPostTimeout, logger)
-		nozzleConfig := &omsnozzle.NozzleConfig{
-			OmsTypePrefix:         omsTypePrefix,
-			OmsBatchTime:          *omsBatchTime,
-			OmsMaxMsgNumPerBatch:  *omsMaxMsgNumPerBatch,
+		nozzleConfig := &common.NozzleConfig{
+			BatchTime:             *omsBatchTime,
+			MaxMsgNumPerBatch:     *omsMaxMsgNumPerBatch,
 			ExcludeMetricEvents:   excludeMetricEvents,
 			ExcludeLogEvents:      excludeLogEvents,
 			ExcludeHttpEvents:     excludeHttpEvents,
 			LogEventCount:         *logEventCount,
 			LogEventCountInterval: *logEventCountInterval,
 		}
-		nozzle := omsnozzle.NewOmsNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
-		nozzle.Start()
+
+		nozzle := common.NewNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
+		omsLogProvider := omsnozzle.NewOmsLogProvider(nozzle, omsTypePrefix)
+		nozzle.Start(omsLogProvider)
 	} else if *sink == "eventhubs" {
 		ehClient := ehclient.NewEventHubsClient(*ehConnectionString, logger)
-		nozzleConfig := &ehnozzle.NozzleConfig{
-			EHBatchTime:           *ehBatchTime,
-			EHMaxMsgNumPerBatch:   *ehMaxMsgNumPerBatch,
+		nozzleConfig := &common.NozzleConfig{
+			BatchTime:             *ehBatchTime,
+			MaxMsgNumPerBatch:     *ehMaxMsgNumPerBatch,
 			ExcludeMetricEvents:   excludeMetricEvents,
 			ExcludeLogEvents:      excludeLogEvents,
 			ExcludeHttpEvents:     excludeHttpEvents,
 			LogEventCount:         *logEventCount,
 			LogEventCountInterval: *logEventCountInterval,
 		}
-		nozzle := ehnozzle.NewEventsHubsNozzle(logger, firehoseClient, ehClient, nozzleConfig, cachingClient)
-		nozzle.Start()
+		nozzle := common.NewNozzle(logger, firehoseClient, ehClient, nozzleConfig, cachingClient)
+		ehLogProvider := ehnozzle.NewEHLogProvider(nozzle)
+		nozzle.Start(ehLogProvider)
 	}
 }
 
