@@ -5,41 +5,51 @@ import (
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/common"
 )
 
-type EHLogProvider struct {
-	nozzle *common.Nozzle
+// EventHubsNozzle type.
+type EventHubsNozzle struct {
+	base *common.NozzleBase
 }
 
-func NewEHLogProvider(nozzle *common.Nozzle) common.NozzleLogProvider {
-	return &EHLogProvider{
-		nozzle: nozzle,
+// NewEventHubsNozzle creates an Event Hubs nozzle.
+func NewEventHubsNozzle(nozzle *common.NozzleBase) common.Nozzle {
+	n := EventHubsNozzle{
+		base: nozzle,
 	}
+	n.base.PostData = n.postData
+	return &n
 }
 
-func (o *EHLogProvider) PostData(events *map[string][]interface{}, addCount bool) {
+// Start starts the nozzle.
+func (o *EventHubsNozzle) Start() error {
+	return o.base.Start()
+}
+
+// PostData posts the data.
+func (o *EventHubsNozzle) postData(events *map[string][]interface{}, addCount bool) {
 	for k, v := range *events {
 		if len(v) > 0 {
-			o.nozzle.Logger.Debug("Posting to Event Hubs",
+			o.base.Logger.Debug("Posting to Event Hubs",
 				lager.Data{"event type": k},
 				lager.Data{"event count": len(v)})
-			if size, err := o.nozzle.Client.PostBatchData(&v, k); err != nil {
-				o.nozzle.Logger.Error("error posting message to Event Hubs", err,
+			if size, err := o.base.Client.PostBatchData(&v, k); err != nil {
+				o.base.Logger.Error("error posting message to Event Hubs", err,
 					lager.Data{"event type": k},
 					lager.Data{"event count": len(v)})
 				if addCount {
-					o.nozzle.Mutex.Lock()
-					o.nozzle.TotalEventsLost += uint64(len(v))
-					o.nozzle.Mutex.Unlock()
+					o.base.Mutex.Lock()
+					o.base.TotalEventsLost += uint64(len(v))
+					o.base.Mutex.Unlock()
 				}
 			} else {
 				if addCount {
-					o.nozzle.Mutex.Lock()
-					o.nozzle.TotalEventsSent += uint64(len(v))
-					o.nozzle.TotalDataSent += uint64(size)
-					o.nozzle.Mutex.Unlock()
+					o.base.Mutex.Lock()
+					o.base.TotalEventsSent += uint64(len(v))
+					o.base.TotalDataSent += uint64(size)
+					o.base.Mutex.Unlock()
 				}
 				break
 			}
 		}
 	}
-	<-o.nozzle.GoroutineSem
+	<-o.base.GoroutineSem
 }

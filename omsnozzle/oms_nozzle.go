@@ -8,63 +8,73 @@ import (
 	"github.com/Azure/oms-log-analytics-firehose-nozzle/common"
 )
 
-type OmsLogProvider struct {
-	nozzle        *common.Nozzle
+// OMSNozzle type.
+type OMSNozzle struct {
+	base          *common.NozzleBase
 	omsTypePrefix string
 }
 
-func NewOmsLogProvider(nozzle *common.Nozzle, omsTypePrefix string) common.NozzleLogProvider {
-	return &OmsLogProvider{
-		nozzle:        nozzle,
+// NewOMSNozzle creates an OMS nozzle.
+func NewOMSNozzle(nozzle *common.NozzleBase, omsTypePrefix string) common.Nozzle {
+	n := OMSNozzle{
+		base:          nozzle,
 		omsTypePrefix: omsTypePrefix,
 	}
+	n.base.PostData = n.postData
+	return &n
 }
 
-func (o *OmsLogProvider) PostData(events *map[string][]interface{}, addCount bool) {
+// Start starts the nozzle.
+func (o *OMSNozzle) Start() error {
+	return o.base.Start()
+}
+
+// PostData posts the data.
+func (o *OMSNozzle) postData(events *map[string][]interface{}, addCount bool) {
 	for k, v := range *events {
 		if len(v) > 0 {
-			if msgAsJson, err := json.Marshal(&v); err != nil {
-				o.nozzle.Logger.Error("error marshalling message to JSON", err,
+			if msgAsJSON, err := json.Marshal(&v); err != nil {
+				o.base.Logger.Error("error marshalling message to JSON", err,
 					lager.Data{"event type": k},
 					lager.Data{"event count": len(v)})
 			} else {
-				o.nozzle.Logger.Debug("Posting to OMS",
+				o.base.Logger.Debug("Posting to OMS",
 					lager.Data{"event type": k},
 					lager.Data{"event count": len(v)},
-					lager.Data{"total size": len(msgAsJson)})
+					lager.Data{"total size": len(msgAsJSON)})
 				if len(o.omsTypePrefix) > 0 {
 					k = o.omsTypePrefix + k
 				}
 				nRetries := 4
 				for nRetries > 0 {
 					requestStartTime := time.Now()
-					if err = o.nozzle.Client.PostData(&msgAsJson, k); err != nil {
+					if err = o.base.Client.PostData(&msgAsJSON, k); err != nil {
 						nRetries--
 						elapsedTime := time.Since(requestStartTime)
-						o.nozzle.Logger.Error("error posting message to OMS", err,
+						o.base.Logger.Error("error posting message to OMS", err,
 							lager.Data{"event type": k},
 							lager.Data{"elapse time": elapsedTime.String()},
 							lager.Data{"event count": len(v)},
-							lager.Data{"total size": len(msgAsJson)},
+							lager.Data{"total size": len(msgAsJSON)},
 							lager.Data{"remaining attempts": nRetries})
 						time.Sleep(time.Second * 1)
 					} else {
 						if addCount {
-							o.nozzle.Mutex.Lock()
-							o.nozzle.TotalEventsSent += uint64(len(v))
-							o.nozzle.TotalDataSent += uint64(len(msgAsJson))
-							o.nozzle.Mutex.Unlock()
+							o.base.Mutex.Lock()
+							o.base.TotalEventsSent += uint64(len(v))
+							o.base.TotalDataSent += uint64(len(msgAsJSON))
+							o.base.Mutex.Unlock()
 						}
 						break
 					}
 				}
 				if nRetries == 0 && addCount {
-					o.nozzle.Mutex.Lock()
-					o.nozzle.TotalEventsLost += uint64(len(v))
-					o.nozzle.Mutex.Unlock()
+					o.base.Mutex.Lock()
+					o.base.TotalEventsLost += uint64(len(v))
+					o.base.Mutex.Unlock()
 				}
 			}
 		}
 	}
-	<-o.nozzle.GoroutineSem
+	<-o.base.GoroutineSem
 }

@@ -215,8 +215,8 @@ func main() {
 		}
 
 		nozzle := common.NewNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
-		omsLogProvider := omsnozzle.NewOmsLogProvider(nozzle, omsTypePrefix)
-		nozzle.Start(omsLogProvider)
+		omsNozzle := omsnozzle.NewOMSNozzle(nozzle, omsTypePrefix)
+		omsNozzle.Start()
 	} else if *sink == "eventhubs" {
 		ehClient := ehclient.NewEventHubsClient(*ehConnectionString, logger)
 		nozzleConfig := &common.NozzleConfig{
@@ -229,8 +229,8 @@ func main() {
 			LogEventCountInterval: *logEventCountInterval,
 		}
 		nozzle := common.NewNozzle(logger, firehoseClient, ehClient, nozzleConfig, cachingClient)
-		ehLogProvider := ehnozzle.NewEHLogProvider(nozzle)
-		nozzle.Start(ehLogProvider)
+		ehNozzle := ehnozzle.NewEventHubsNozzle(nozzle)
+		ehNozzle.Start()
 	}
 }
 

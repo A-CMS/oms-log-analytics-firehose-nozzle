@@ -27,11 +27,11 @@ type NozzleConfig struct {
 	LogEventCountInterval time.Duration
 }
 
-type NozzleLogProvider interface {
-	PostData(events *map[string][]interface{}, addCount bool)
+type Nozzle interface {
+	Start() error
 }
 
-type Nozzle struct {
+type NozzleBase struct {
 	Client              Client
 	Logger              lager.Logger
 	TotalEventsReceived uint64
@@ -47,12 +47,13 @@ type Nozzle struct {
 	signalChan     chan os.Signal
 	firehoseClient firehose.Client
 	cachingClient  caching.CachingClient
-	logProvider    NozzleLogProvider
+
+	PostData func(events *map[string][]interface{}, addCount bool)
 }
 
-func NewNozzle(logger lager.Logger, firehoseClient firehose.Client, client Client, nozzleConfig *NozzleConfig, caching caching.CachingClient) *Nozzle {
+func NewNozzle(logger lager.Logger, firehoseClient firehose.Client, client Client, nozzleConfig *NozzleConfig, caching caching.CachingClient) *NozzleBase {
 	maxPostGoroutines := int(100000 / nozzleConfig.MaxMsgNumPerBatch)
-	return &Nozzle{
+	return &NozzleBase{
 		Client:              client,
 		Logger:              logger,
 		TotalEventsReceived: uint64(0),
@@ -71,8 +72,8 @@ func NewNozzle(logger lager.Logger, firehoseClient firehose.Client, client Clien
 	}
 }
 
-func (nozzle *Nozzle) Start(logProvider NozzleLogProvider) error {
-	nozzle.logProvider = logProvider
+// Start the nozzle.
+func (nozzle *NozzleBase) Start() error {
 	nozzle.cachingClient.Initialize(true)
 
 	// setup for termination signal from CF
@@ -87,7 +88,7 @@ func (nozzle *Nozzle) Start(logProvider NozzleLogProvider) error {
 	return err
 }
 
-func (nozzle *Nozzle) logTotalEvents(interval time.Duration) {
+func (nozzle *NozzleBase) logTotalEvents(interval time.Duration) {
 	logEventCountTicker := time.NewTicker(interval)
 	lastReceivedCount := uint64(0)
 	lastSentCount := uint64(0)
@@ -107,7 +108,7 @@ func (nozzle *Nozzle) logTotalEvents(interval time.Duration) {
 			nozzle.addEventCountEvent("eventsLost", totalLostCount-lastLostCount, totalLostCount, &timeStamp, &currentEvents)
 
 			nozzle.GoroutineSem <- 1
-			nozzle.logProvider.PostData(&currentEvents, false)
+			nozzle.PostData(&currentEvents, false)
 
 			lastReceivedCount = totalReceivedCount
 			lastSentCount = totalSentCount
@@ -116,7 +117,7 @@ func (nozzle *Nozzle) logTotalEvents(interval time.Duration) {
 	}()
 }
 
-func (nozzle *Nozzle) addEventCountEvent(name string, deltaCount uint64, count uint64, timeStamp *int64, currentEvents *map[string][]interface{}) {
+func (nozzle *NozzleBase) addEventCountEvent(name string, deltaCount uint64, count uint64, timeStamp *int64, currentEvents *map[string][]interface{}) {
 	counterEvent := &events.CounterEvent{
 		Name:  &name,
 		Delta: &deltaCount,
@@ -140,7 +141,7 @@ func (nozzle *Nozzle) addEventCountEvent(name string, deltaCount uint64, count u
 	(*currentEvents)[eventTypeString] = append((*currentEvents)[eventTypeString], msg)
 }
 
-func (nozzle *Nozzle) routeEvents() error {
+func (nozzle *NozzleBase) routeEvents() error {
 	pendingEvents := make(map[string][]interface{})
 	// Firehose message processing loop
 	ticker := time.NewTicker(nozzle.NozzleConfig.BatchTime)
@@ -160,7 +161,7 @@ func (nozzle *Nozzle) routeEvents() error {
 			// reset the pending events
 			pendingEvents = make(map[string][]interface{})
 			nozzle.GoroutineSem <- 1
-			go nozzle.logProvider.PostData(&currentEvents, true)
+			go nozzle.PostData(&currentEvents, true)
 		case msg := <-nozzle.msgChan:
 			nozzle.TotalEventsReceived++
 			// process message
@@ -235,7 +236,7 @@ func (nozzle *Nozzle) routeEvents() error {
 				currentEvents := pendingEvents
 				pendingEvents = make(map[string][]interface{})
 				nozzle.GoroutineSem <- 1
-				go nozzle.logProvider.PostData(&currentEvents, true)
+				go nozzle.PostData(&currentEvents, true)
 			}
 		case err := <-nozzle.errChan:
 			nozzle.Logger.Error("Error while reading from the firehose", err)
@@ -247,7 +248,7 @@ func (nozzle *Nozzle) routeEvents() error {
 
 			// post the buffered messages
 			nozzle.GoroutineSem <- 1
-			nozzle.logProvider.PostData(&pendingEvents, true)
+			nozzle.PostData(&pendingEvents, true)
 
 			nozzle.Logger.Error("Closing connection with traffic controller", nil)
 			nozzle.firehoseClient.CloseConsumer()
@@ -257,7 +258,7 @@ func (nozzle *Nozzle) routeEvents() error {
 }
 
 // Log slowConsumerAlert as a ValueMetric event
-func (nozzle *Nozzle) logSlowConsumerAlert() {
+func (nozzle *NozzleBase) logSlowConsumerAlert() {
 	name := "slowConsumerAlert"
 	value := float64(1)
 	unit := "b"
@@ -285,5 +286,5 @@ func (nozzle *Nozzle) logSlowConsumerAlert() {
 	currentEvents[eventType.String()] = append(currentEvents[eventType.String()], message)
 
 	nozzle.GoroutineSem <- 1
-	nozzle.logProvider.PostData(&currentEvents, false)
+	nozzle.PostData(&currentEvents, false)
 }
