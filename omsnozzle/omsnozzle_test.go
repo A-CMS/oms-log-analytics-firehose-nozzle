@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	nozzle         *common.Nozzle
-	omsLogProvider common.NozzleLogProvider
+	nozzle         common.Nozzle
+	omsNozzle      *omsnozzle.OMSNozzle
 	nozzleConfig   *common.NozzleConfig
 	firehoseClient *mocks.MockFirehoseClient
 	omsClient      common.Client
@@ -41,9 +41,9 @@ var _ = Describe("Omsnozzle", func() {
 		}
 
 		omsTypePrefix := "CF_"
-		nozzle = common.NewNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
-		omsLogProvider = omsnozzle.NewOmsLogProvider(nozzle, omsTypePrefix)
-		go nozzle.Start(omsLogProvider)
+		nozzle := common.NewNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
+		omsNozzle := omsnozzle.NewOMSNozzle(nozzle, omsTypePrefix)
+		go omsNozzle.Start()
 	})
 
 	It("routes a LogMessage", func() {
@@ -187,9 +187,9 @@ var _ = Describe("LogEventCount", func() {
 		}
 
 		omsTypePrefix := "CF_"
-		nozzle = common.NewNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
-		omsLogProvider = omsnozzle.NewOmsLogProvider(nozzle, omsTypePrefix)
-		go nozzle.Start(omsLogProvider)
+		nozzle := common.NewNozzle(logger, firehoseClient, omsClient, nozzleConfig, cachingClient)
+		omsNozzle := omsnozzle.NewOMSNozzle(nozzle, omsTypePrefix)
+		go omsNozzle.Start()
 	})
 
 	It("logs event count correctlty", func() {
