@@ -192,7 +192,7 @@ func (nozzle *NozzleBase) routeEvents() error {
 			case events.Envelope_ContainerMetric:
 				if !nozzle.NozzleConfig.ExcludeMetricEvents {
 					message = messages.NewContainerMetric(msg, nozzle.cachingClient)
-					if message != nil {
+					if message.(*messages.ContainerMetric) != nil {
 						pendingEvents[messageType] = append(pendingEvents[messageType], message)
 					}
 				}
@@ -201,7 +201,7 @@ func (nozzle *NozzleBase) routeEvents() error {
 			case events.Envelope_LogMessage:
 				if !nozzle.NozzleConfig.ExcludeLogEvents {
 					message = messages.NewLogMessage(msg, nozzle.cachingClient)
-					if message != nil {
+					if message.(*messages.LogMessage) != nil {
 						pendingEvents[messageType] = append(pendingEvents[messageType], message)
 					}
 				}
@@ -216,7 +216,7 @@ func (nozzle *NozzleBase) routeEvents() error {
 			case events.Envelope_HttpStartStop:
 				if !nozzle.NozzleConfig.ExcludeHttpEvents {
 					message = messages.NewHTTPStartStop(msg, nozzle.cachingClient)
-					if message != nil {
+					if message.(*messages.HTTPStartStop) != nil {
 						pendingEvents[messageType] = append(pendingEvents[messageType], message)
 					}
 				}
