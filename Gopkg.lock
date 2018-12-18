@@ -39,15 +39,15 @@
   version = "v1.1.3"
 
 [[projects]]
-  digest = "1:6009fd9fc318ea9b816f7cb28747cfde2064cb3c9ac1d2269a0d32ad3c107bd7"
+  digest = "1:c1e3d31926210bd6e7e4748884eb6cc61f651de166c66265f3a41d951d6e2145"
   name = "github.com/Azure/azure-event-hubs-go"
   packages = [
     ".",
     "atom",
   ]
   pruneopts = "UT"
-  revision = "76c642f8da3e1eaeb2b6d93697dd4e2e82eb645c"
-  version = "v1.0.1"
+  revision = "804d4a4235136f100951fde308046bedabe2d7c6"
+  version = "v1.1.1"
 
 [[projects]]
   digest = "1:8cbe1a1c4f6373b6a967ded2f5d98a70f687c6e2bf32495fef7446f76f7d28bb"
