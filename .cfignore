@@ -4,7 +4,6 @@ mocks/
 
 # External packages for test
 vendor/github.com/onsi
-vendor/golang.org/x/sys/unix
 vendor/gopkg.in/yaml.v2
 
 # PCF tile files
