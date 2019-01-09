@@ -13,13 +13,15 @@ import (
 // Client posts messages to Event Hubs
 type ehclient struct {
 	connectionString string
+	timeout          time.Duration
 	logger           lager.Logger
 }
 
 // NewEventHubsClient creates a new instance of the Client
-func NewEventHubsClient(connectionString string, logger lager.Logger) common.Client {
+func NewEventHubsClient(connectionString string, postTimeout time.Duration, logger lager.Logger) common.Client {
 	return &ehclient{
 		connectionString: connectionString,
+		timeout:          postTimeout,
 		logger:           logger,
 	}
 }
@@ -27,7 +29,7 @@ func NewEventHubsClient(connectionString string, logger lager.Logger) common.Cli
 func (c *ehclient) PostData(msg *[]byte, logType string) error {
 	// Create context
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
 	// Create Event Hubs client
@@ -51,7 +53,7 @@ func (c *ehclient) PostData(msg *[]byte, logType string) error {
 func (c *ehclient) PostBatchData(batch *[]interface{}, logType string) (int, error) {
 	// Create context
 	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 
 	// Create Event Hubs client

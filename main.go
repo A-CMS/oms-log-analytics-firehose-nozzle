@@ -218,7 +218,7 @@ func main() {
 		omsNozzle := omsnozzle.NewOMSNozzle(nozzle, omsTypePrefix)
 		omsNozzle.Start()
 	} else if *sink == "eventhubs" {
-		ehClient := ehclient.NewEventHubsClient(*ehConnectionString, logger)
+		ehClient := ehclient.NewEventHubsClient(*ehConnectionString, *ehPostTimeout, logger)
 		nozzleConfig := &common.NozzleConfig{
 			BatchTime:             *ehBatchTime,
 			MaxMsgNumPerBatch:     *ehMaxMsgNumPerBatch,
